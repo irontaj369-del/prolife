@@ -1,0 +1,7 @@
+{
+  "name": "PRO LIFE - Best Flavored Protein Drinks",
+  "description": "Experience PRO LIFE protein drinks with immersive scroll-based animation across Chocolate, Strawberry, and Cookies & Cream flavors.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

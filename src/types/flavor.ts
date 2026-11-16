@@ -1,0 +1,97 @@
+export type FlavorId = 'chocolate' | 'strawberry' | 'cookies';
+
+export interface FlavorConfig {
+  id: FlavorId;
+  name: string;
+  tagline: string;
+  subtitle: string;
+  shortLabel: string;
+  emoji: string;
+  accentColor: string;
+  accentRgb: string;
+  glowColor: string;
+  ambientGradient: string;
+  supabaseFolder: string;
+  frameCount: number;
+  initialLocalFrame: string;
+  finalLocalFrame: string;
+  specs: {
+    protein: string;
+    calories: string;
+    sugar: string;
+    bcaa: string;
+  };
+  highlights: string[];
+}
+
+export const FLAVORS: Record<FlavorId, FlavorConfig> = {
+  chocolate: {
+    id: 'chocolate',
+    name: 'Chocolate',
+    tagline: 'Deep Belgian Cocoa & Silky Cream',
+    subtitle: 'Best Flavored Protein Drinks',
+    shortLabel: 'Chocolate',
+    emoji: '🍫',
+    accentColor: '#c8874a',
+    accentRgb: '200, 135, 74',
+    glowColor: 'rgba(168, 85, 34, 0.45)',
+    ambientGradient: 'radial-gradient(circle at 50% 50%, rgba(88, 38, 16, 0.55) 0%, rgba(20, 9, 4, 0.95) 75%, #050202 100%)',
+    supabaseFolder: 'ezgif-split',
+    frameCount: 190,
+    initialLocalFrame: '/initial_frames/chocolate_000.png',
+    finalLocalFrame: '/initial_frames/chocolate_189.png',
+    specs: {
+      protein: '26g',
+      calories: '180 kcal',
+      sugar: '0g Added',
+      bcaa: '5.5g'
+    },
+    highlights: ['Real Dutch Cocoa', 'Micro-Filtered Whey', 'Zero Chalky Aftertaste']
+  },
+  strawberry: {
+    id: 'strawberry',
+    name: 'Strawberry',
+    tagline: 'Sun-Ripened Berries & Fresh Sweet Milk',
+    subtitle: 'Best Flavored Protein Drinks',
+    shortLabel: 'Strawberry',
+    emoji: '🍓',
+    accentColor: '#fb7185',
+    accentRgb: '251, 113, 133',
+    glowColor: 'rgba(244, 63, 94, 0.45)',
+    ambientGradient: 'radial-gradient(circle at 50% 50%, rgba(136, 19, 55, 0.55) 0%, rgba(31, 5, 14, 0.95) 75%, #060204 100%)',
+    supabaseFolder: 'ezgif-split%20(1)',
+    frameCount: 190,
+    initialLocalFrame: '/initial_frames/strawberry_000.png',
+    finalLocalFrame: '/initial_frames/strawberry_189.png',
+    specs: {
+      protein: '26g',
+      calories: '175 kcal',
+      sugar: '0g Added',
+      bcaa: '5.4g'
+    },
+    highlights: ['Real Strawberry Puree', 'Velvety Smooth', 'Electrolyte Infused']
+  },
+  cookies: {
+    id: 'cookies',
+    name: 'Cookies & Cream',
+    tagline: 'Crushed Dark Biscuit & Sweet Cream',
+    subtitle: 'Best Flavored Protein Drinks',
+    shortLabel: 'Cookies & Cream',
+    emoji: '🍪',
+    accentColor: '#e0a96d',
+    accentRgb: '224, 169, 109',
+    glowColor: 'rgba(217, 169, 109, 0.45)',
+    ambientGradient: 'radial-gradient(circle at 50% 50%, rgba(92, 64, 46, 0.55) 0%, rgba(22, 16, 12, 0.95) 75%, #040302 100%)',
+    supabaseFolder: 'ezgif-split%20(2)',
+    frameCount: 190,
+    initialLocalFrame: '/initial_frames/cookies_000.png',
+    finalLocalFrame: '/initial_frames/cookies_189.png',
+    specs: {
+      protein: '26g',
+      calories: '185 kcal',
+      sugar: '0g Added',
+      bcaa: '5.6g'
+    },
+    highlights: ['Dark Cookie Crunch', 'Madagascar Vanilla', 'Ultra Creamy Texture']
+  }
+};
