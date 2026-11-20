@@ -1,78 +1,115 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FlavorId, FLAVORS } from '../types/flavor';
-import { getBestAvailableFrame, queueLoader, loadFrame } from '../utils/frameLoader';
+import {
+  FrameDrawable,
+  getBestAvailableFrame,
+  getFrameDimensions,
+  isFrameReady,
+  loadFrame,
+  queueLoader,
+} from '../utils/frameLoader';
 
 interface ScrollCanvasProps {
   activeFlavor: FlavorId;
-  scrollProgress: number; // 0 to 1
+  scrollProgressRef: React.MutableRefObject<number>;
   isTransitioning: boolean;
 }
 
 export const ScrollCanvas: React.FC<ScrollCanvasProps> = ({
   activeFlavor,
-  scrollProgress,
+  scrollProgressRef,
   isTransitioning,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentFrameRef = useRef<number>(0);
-  const targetFrameRef = useRef<number>(0);
-  const animationFrameIdRef = useRef<number | null>(null);
+  const lastDrawnSourceRef = useRef<FrameDrawable | null>(null);
+  const lastCanvasSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
+  const viewportRef = useRef<{ displayW: number; displayH: number; dpr: number }>({
+    displayW: typeof window !== 'undefined' ? window.innerWidth : 1280,
+    displayH: typeof window !== 'undefined' ? window.innerHeight : 720,
+    dpr: 1,
+  });
   const [initialLoaded, setInitialLoaded] = useState(false);
 
   const flavorConfig = FLAVORS[activeFlavor];
   const totalFrames = flavorConfig.frameCount;
 
-  // Preload and draw initial frame immediately
+  // Keep viewport metrics cached on resize (avoids layout reads inside RAF)
+  useEffect(() => {
+    const updateViewport = () => {
+      const displayW = window.innerWidth;
+      const displayH = window.innerHeight;
+      const isMobile = displayW < 768;
+      const maxDpr = isMobile ? 1.5 : 2;
+      const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
+      viewportRef.current = { displayW, displayH, dpr };
+    };
+
+    updateViewport();
+    window.addEventListener('resize', updateViewport, { passive: true });
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
+  // Preload initial frame & focus queue loader when flavor switches
   useEffect(() => {
     let isMounted = true;
+    lastDrawnSourceRef.current = null;
 
-    // Load initial local frame 0
-    loadFrame(activeFlavor, 0)
+    const currentIdx = Math.min(
+      totalFrames - 1,
+      Math.max(0, Math.round(scrollProgressRef.current * (totalFrames - 1)))
+    );
+
+    loadFrame(activeFlavor, currentIdx)
       .then(() => {
-        if (isMounted) {
-          setInitialLoaded(true);
-        }
+        if (isMounted) setInitialLoaded(true);
       })
       .catch(() => {});
 
-    // Focus priority loader on current frame
-    queueLoader.setFocus(activeFlavor, 0);
+    if (currentIdx !== 0) {
+      loadFrame(activeFlavor, 0).catch(() => {});
+    }
+
+    queueLoader.setFocus(activeFlavor, currentIdx);
 
     return () => {
       isMounted = false;
     };
-  }, [activeFlavor]);
+  }, [activeFlavor, totalFrames, scrollProgressRef]);
 
-  // Update target frame based on scroll progress
-  useEffect(() => {
-    const rawTarget = Math.min(
-      totalFrames - 1,
-      Math.max(0, Math.round(scrollProgress * (totalFrames - 1)))
-    );
-    targetFrameRef.current = rawTarget;
-
-    // Direct preloader queue focus to this neighborhood
-    queueLoader.setFocus(activeFlavor, rawTarget);
-  }, [scrollProgress, totalFrames, activeFlavor]);
-
-  // Continuous smooth render loop using requestAnimationFrame
+  // Continuous delta-time normalized render loop (draws ONLY when frame or size changes)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: false });
+    const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
     if (!ctx) return;
 
     let running = true;
+    let rafId: number | null = null;
+    let lastTime = performance.now();
 
-    const render = () => {
+    const render = (now: number) => {
       if (!running) return;
 
-      // Lerp frame smoothing: lerp factor ~0.18 for butter-smooth scrubbing
-      const diff = targetFrameRef.current - currentFrameRef.current;
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
+
+      // Read scroll target directly from ref (zero React re-render delay)
+      const targetFrame = Math.min(
+        totalFrames - 1,
+        Math.max(0, Math.round(scrollProgressRef.current * (totalFrames - 1)))
+      );
+
+      // Keep preloader focused near current scroll position (internally throttled)
+      queueLoader.setFocus(activeFlavor, targetFrame);
+
+      // Frame-rate independent exponential smoothing (~0.2 at 60fps, identical feel at 120fps)
+      const diff = targetFrame - currentFrameRef.current;
       if (Math.abs(diff) < 0.05) {
-        currentFrameRef.current = targetFrameRef.current;
+        currentFrameRef.current = targetFrame;
       } else {
-        currentFrameRef.current += diff * 0.18;
+        const lerpAlpha = 1 - Math.exp(-14 * dt);
+        currentFrameRef.current += diff * lerpAlpha;
       }
 
       const frameIndex = Math.min(
@@ -80,77 +117,57 @@ export const ScrollCanvas: React.FC<ScrollCanvasProps> = ({
         Math.max(0, Math.round(currentFrameRef.current))
       );
 
-      // Get image
-      const img = getBestAvailableFrame(activeFlavor, frameIndex);
+      const frame = getBestAvailableFrame(activeFlavor, frameIndex);
 
-      if (img && img.complete && img.naturalWidth > 0) {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        const displayW = window.innerWidth;
-        const displayH = window.innerHeight;
-
+      if (isFrameReady(frame)) {
+        const { displayW, displayH, dpr } = viewportRef.current;
         const targetCanvasW = Math.floor(displayW * dpr);
         const targetCanvasH = Math.floor(displayH * dpr);
 
-        if (canvas.width !== targetCanvasW || canvas.height !== targetCanvasH) {
+        const sizeChanged =
+          lastCanvasSizeRef.current.w !== targetCanvasW ||
+          lastCanvasSizeRef.current.h !== targetCanvasH;
+
+        if (sizeChanged) {
           canvas.width = targetCanvasW;
           canvas.height = targetCanvasH;
+          lastCanvasSizeRef.current = { w: targetCanvasW, h: targetCanvasH };
         }
 
-        ctx.save();
-        ctx.scale(dpr, dpr);
+        // Only draw if the decoded bitmap changed or viewport resized
+        if (frame !== lastDrawnSourceRef.current || sizeChanged) {
+          lastDrawnSourceRef.current = frame;
 
-        // Responsive Zoom Calculation
-        // On mobile, zoom in so it covers 100% of viewport height & looks prominent
-        const isMobile = displayW < 768;
-        const baseScale = Math.max(displayW / img.naturalWidth, displayH / img.naturalHeight);
-        const zoomFactor = isMobile ? 1.25 : 1.02;
-        const scale = baseScale * zoomFactor;
+          const { width: srcW, height: srcH } = getFrameDimensions(frame);
+          const isMobile = displayW < 768;
+          const baseScale = Math.max(displayW / srcW, displayH / srcH);
+          const zoomFactor = isMobile ? 1.25 : 1.02;
+          const scale = baseScale * zoomFactor;
 
-        const renderW = img.naturalWidth * scale;
-        const renderH = img.naturalHeight * scale;
+          const renderW = srcW * scale;
+          const renderH = srcH * scale;
+          const offsetX = (displayW - renderW) / 2;
+          const offsetY = (displayH - renderH) / 2;
 
-        const offsetX = (displayW - renderW) / 2;
-        const offsetY = (displayH - renderH) / 2;
-
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-
-        // Background clear
-        ctx.fillStyle = '#060303';
-        ctx.fillRect(0, 0, displayW, displayH);
-
-        // Draw image frame
-        ctx.drawImage(img, offsetX, offsetY, renderW, renderH);
-
-        ctx.restore();
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = isMobile ? 'medium' : 'high';
+          ctx.drawImage(frame, offsetX, offsetY, renderW, renderH);
+        }
       }
 
-      animationFrameIdRef.current = requestAnimationFrame(render);
+      rafId = requestAnimationFrame(render);
     };
 
-    render();
+    rafId = requestAnimationFrame(render);
 
     return () => {
       running = false;
-      if (animationFrameIdRef.current) {
-        cancelAnimationFrame(animationFrameIdRef.current);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
       }
     };
-  }, [activeFlavor, totalFrames]);
-
-  // Window resize listener
-  useEffect(() => {
-    const handleResize = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.floor(window.innerWidth * dpr);
-      canvas.height = Math.floor(window.innerHeight * dpr);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [activeFlavor, totalFrames, scrollProgressRef]);
 
   return (
     <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none select-none">
@@ -159,18 +176,18 @@ export const ScrollCanvas: React.FC<ScrollCanvasProps> = ({
         className="absolute inset-0 transition-opacity duration-700 ease-out pointer-events-none"
         style={{
           background: flavorConfig.ambientGradient,
-          opacity: 0.85,
+          opacity: 1,
         }}
       />
 
-      {/* Main High-Performance Canvas */}
+      {/* Main High-Performance GPU-Backed Canvas with crisp brightness/vibrancy boost */}
       <canvas
         ref={canvasRef}
-        className={`w-full h-full object-cover transition-opacity duration-300 ${
-          isTransitioning ? 'opacity-40 scale-102' : 'opacity-100 scale-100'
+        className={`w-full h-full bg-[#1a0d07] transition-opacity duration-200 ${
+          isTransitioning ? 'opacity-50' : 'opacity-100'
         }`}
         style={{
-          filter: 'contrast(1.04) brightness(1.02)',
+          filter: 'brightness(1.18) contrast(1.06) saturate(1.1)',
         }}
       />
 
@@ -180,12 +197,29 @@ export const ScrollCanvas: React.FC<ScrollCanvasProps> = ({
           src={flavorConfig.initialLocalFrame}
           alt={flavorConfig.name}
           className="absolute inset-0 w-full h-full object-cover"
+          style={{
+            filter: 'brightness(1.18) contrast(1.06) saturate(1.1)',
+          }}
         />
       )}
 
-      {/* Soft vignette scrim overlay to protect text contrast and give cinematic polish */}
-      <div className="absolute inset-0 bg-radial from-transparent via-black/20 to-black/80 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
+      {/* Luminous screen-blend studio fill to lift dark frame corners & edges naturally */}
+      <div
+        className="absolute inset-0 pointer-events-none mix-blend-screen transition-all duration-500"
+        style={{
+          background: `radial-gradient(ellipse 115% 105% at 50% 45%, rgba(${flavorConfig.accentRgb}, 0.12) 0%, rgba(${flavorConfig.accentRgb}, 0.22) 60%, rgba(${flavorConfig.accentRgb}, 0.30) 100%)`,
+        }}
+      />
+
+      {/* Subtle studio center highlight + very soft bottom legibility feather */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 42%, rgba(255,255,255,0.06) 0%, transparent 65%)',
+        }}
+      />
+      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
     </div>
   );
 };

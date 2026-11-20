@@ -20,7 +20,7 @@ interface LightSectionsProps {
   onScrollToHero: () => void;
 }
 
-export const LightSections: React.FC<LightSectionsProps> = ({
+export const LightSections: React.FC<LightSectionsProps> = React.memo(({
   activeFlavor,
   onSelectFlavor,
   onScrollToHero,
@@ -85,6 +85,8 @@ export const LightSections: React.FC<LightSectionsProps> = ({
             <img
               src={currentConfig.finalLocalFrame}
               alt={currentConfig.name}
+              loading="lazy"
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
             />
             {/* Cinematic gradient overlay for pristine contrast */}
@@ -139,8 +141,10 @@ export const LightSections: React.FC<LightSectionsProps> = ({
           {/* Left: Product Can Box that fully fills with the image */}
           <div className="lg:col-span-5 relative rounded-[2.5rem] overflow-hidden min-h-[420px] sm:min-h-[480px] shadow-xl border border-neutral-300/80 group bg-neutral-950">
             <img
-              src="/initial_frames/strawberry_189.png"
+              src="/initial_frames/strawberry_189.webp"
               alt="PRO LIFE Wild Strawberry"
+              loading="lazy"
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/30 pointer-events-none" />
@@ -239,8 +243,10 @@ export const LightSections: React.FC<LightSectionsProps> = ({
               {/* Image box filled 100% */}
               <div className="relative w-full h-64 sm:h-72 rounded-[2rem] overflow-hidden bg-neutral-950 shadow-inner">
                 <img
-                  src="/initial_frames/chocolate_189.png"
+                  src="/initial_frames/chocolate_189.webp"
                   alt="PRO LIFE Dutch Chocolate"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-108"
                 />
                 <div className="absolute top-3.5 left-3.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-bold text-white border border-white/20">
@@ -294,8 +300,10 @@ export const LightSections: React.FC<LightSectionsProps> = ({
               {/* Image box filled 100% */}
               <div className="relative w-full h-64 sm:h-72 rounded-[2rem] overflow-hidden bg-neutral-950 shadow-inner">
                 <img
-                  src="/initial_frames/strawberry_189.png"
+                  src="/initial_frames/strawberry_189.webp"
                   alt="PRO LIFE Wild Strawberry"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-108"
                 />
                 <div className="absolute top-3.5 left-3.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-bold text-white border border-white/20">
@@ -349,8 +357,10 @@ export const LightSections: React.FC<LightSectionsProps> = ({
               {/* Image box filled 100% */}
               <div className="relative w-full h-64 sm:h-72 rounded-[2rem] overflow-hidden bg-neutral-950 shadow-inner">
                 <img
-                  src="/initial_frames/cookies_189.png"
+                  src="/initial_frames/cookies_189.webp"
                   alt="PRO LIFE Cookies and Cream"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-108"
                 />
                 <div className="absolute top-3.5 left-3.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-[11px] font-bold text-white border border-white/20">
@@ -417,8 +427,10 @@ export const LightSections: React.FC<LightSectionsProps> = ({
 
           <div className="relative rounded-[2.5rem] overflow-hidden min-h-[380px] sm:min-h-[460px] shadow-2xl border border-neutral-300/80 group bg-neutral-950">
             <img
-              src="/initial_frames/cookies_189.png"
+              src="/initial_frames/cookies_189.webp"
               alt="PRO LIFE Discovery Sampler"
+              loading="lazy"
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/35 pointer-events-none" />
@@ -497,8 +509,10 @@ export const LightSections: React.FC<LightSectionsProps> = ({
             {/* Right Column: Full-bleed product visual box */}
             <div className="lg:col-span-5 relative w-full h-64 sm:h-80 lg:h-72 rounded-3xl overflow-hidden shadow-xl border border-neutral-300/60 group bg-neutral-950">
               <img
-                src="/initial_frames/chocolate_189.png"
+                src="/initial_frames/chocolate_189.webp"
                 alt="PRO LIFE Best Sellers Pack"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
               />
               <div className="absolute top-3.5 left-3.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-bold font-headline">
@@ -806,4 +820,5 @@ export const LightSections: React.FC<LightSectionsProps> = ({
       </div>
     </div>
   );
-};
+});
+

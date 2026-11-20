@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { FlavorId, FLAVORS } from './types/flavor';
+import { FlavorId } from './types/flavor';
 import { Navbar } from './components/Navbar';
 import { ScrollCanvas } from './components/ScrollCanvas';
 import { HeroOverlay } from './components/HeroOverlay';
@@ -30,6 +30,7 @@ export default function App() {
   const [isLightSection, setIsLightSection] = useState<boolean>(false);
 
   const heroRef = useRef<HTMLDivElement | null>(null);
+  const scrollProgressRef = useRef<number>(0);
   const autoPlayRafRef = useRef<number | null>(null);
 
   // Warm up initial frames on mount
@@ -42,16 +43,10 @@ export default function App() {
     (flavor: FlavorId) => {
       if (flavor === activeFlavor) return;
 
-      // Stop any running auto-play
       setIsAutoPlaying(false);
-
-      // Brief fluid transition
       setIsTransitioning(true);
-
-      // Update active flavor without moving the page up or down
       setActiveFlavor(flavor);
 
-      // Update URL search parameter
       try {
         const url = new URL(window.location.href);
         url.searchParams.set('flavor', flavor);
@@ -79,33 +74,62 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [activeFlavor, handleSelectFlavor]);
 
-  // Handle scroll calculation for hero scrub progress & light section detection
+  // Handle scroll calculation:
+  // 1) Updates scrollProgressRef synchronously for zero-latency ScrollCanvas
+  // 2) Throttles React UI state updates via requestAnimationFrame to prevent scroll jank
   useEffect(() => {
-    const handleScroll = () => {
+    let rafPending = false;
+    let lastCommittedProgress = -1;
+    let lastLightState = false;
+
+    const syncScroll = () => {
+      rafPending = false;
       const hero = heroRef.current;
       if (!hero) return;
 
       const heroRect = hero.getBoundingClientRect();
-      const heroHeight = hero.offsetHeight;
-      const windowH = window.innerHeight;
-      const maxHeroScroll = heroHeight - windowH;
+      const maxHeroScroll = hero.offsetHeight - window.innerHeight;
+      if (maxHeroScroll <= 0) return;
 
-      if (maxHeroScroll <= 0) {
-        setScrollProgress(0);
-        return;
-      }
-
-      // Amount scrolled inside hero container
       const scrolledInHero = Math.max(0, -heroRect.top);
       const progress = Math.min(1, Math.max(0, scrolledInHero / maxHeroScroll));
-      setScrollProgress(progress);
+      scrollProgressRef.current = progress;
 
-      // Show navbar only after hero section ends (when entering light sections)
-      setIsLightSection(heroRect.bottom <= 70);
+      const light = heroRect.bottom <= 70;
+      if (light !== lastLightState) {
+        lastLightState = light;
+        setIsLightSection(light);
+      }
+
+      // Quantize UI overlay progress updates slightly when nearly unchanged to save renders
+      if (Math.abs(progress - lastCommittedProgress) >= 0.002 || progress === 0 || progress === 1) {
+        if (progress !== lastCommittedProgress) {
+          lastCommittedProgress = progress;
+          setScrollProgress(progress);
+        }
+      }
+    };
+
+    const handleScroll = () => {
+      // Update canvas target ref immediately on scroll without waiting for RAF
+      const hero = heroRef.current;
+      if (hero) {
+        const heroRect = hero.getBoundingClientRect();
+        const maxHeroScroll = hero.offsetHeight - window.innerHeight;
+        if (maxHeroScroll > 0) {
+          const scrolledInHero = Math.max(0, -heroRect.top);
+          scrollProgressRef.current = Math.min(1, Math.max(0, scrolledInHero / maxHeroScroll));
+        }
+      }
+
+      if (!rafPending) {
+        rafPending = true;
+        requestAnimationFrame(syncScroll);
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
+    syncScroll();
 
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -145,6 +169,14 @@ export default function App() {
     };
   }, [isAutoPlaying]);
 
+  const handleToggleAutoPlay = useCallback(() => {
+    setIsAutoPlaying((prev) => !prev);
+  }, []);
+
+  const handleScrollToHero = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   // Navbar appears smoothly ONLY after the hero section ends
   const showNavbar = isLightSection || scrollProgress >= 0.99;
 
@@ -173,7 +205,7 @@ export default function App() {
           {/* Scroll-driven Canvas animation layer */}
           <ScrollCanvas
             activeFlavor={activeFlavor}
-            scrollProgress={scrollProgress}
+            scrollProgressRef={scrollProgressRef}
             isTransitioning={isTransitioning}
           />
 
@@ -183,7 +215,7 @@ export default function App() {
             onSelectFlavor={handleSelectFlavor}
             scrollProgress={scrollProgress}
             isAutoPlaying={isAutoPlaying}
-            onToggleAutoPlay={() => setIsAutoPlaying((prev) => !prev)}
+            onToggleAutoPlay={handleToggleAutoPlay}
           />
         </div>
       </section>
@@ -195,7 +227,7 @@ export default function App() {
       <LightSections
         activeFlavor={activeFlavor}
         onSelectFlavor={handleSelectFlavor}
-        onScrollToHero={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        onScrollToHero={handleScrollToHero}
       />
     </div>
   );

@@ -8,7 +8,7 @@ interface NavbarProps {
   isVisible: boolean;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeFlavor, onSelectFlavor, isVisible }) => {
+export const Navbar: React.FC<NavbarProps> = React.memo(({ activeFlavor, onSelectFlavor, isVisible }) => {
   const [modalType, setModalType] = useState<'nutrition' | 'formula' | 'story' | 'order' | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const current = FLAVORS[activeFlavor];
@@ -334,4 +334,5 @@ export const Navbar: React.FC<NavbarProps> = ({ activeFlavor, onSelectFlavor, is
       )}
     </>
   );
-};
+});
+

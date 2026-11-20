@@ -10,7 +10,7 @@ interface HeroOverlayProps {
   onToggleAutoPlay: () => void;
 }
 
-export const HeroOverlay: React.FC<HeroOverlayProps> = ({
+export const HeroOverlay: React.FC<HeroOverlayProps> = React.memo(({
   activeFlavor,
   onSelectFlavor,
   scrollProgress,
@@ -44,10 +44,10 @@ export const HeroOverlay: React.FC<HeroOverlayProps> = ({
       {/* Fades out immediately as soon as someone starts scrolling                 */}
       {/* ========================================================================= */}
       <div
-        className="relative my-auto flex flex-col items-center justify-center text-center px-4 transition-all duration-200 ease-out"
+        className="relative my-auto flex flex-col items-center justify-center text-center px-4 will-change-transform"
         style={{
           opacity: initialOpacity,
-          transform: `translateY(${initialTranslateY}px) scale(${initialScale})`,
+          transform: `translate3d(0, ${initialTranslateY}px, 0) scale(${initialScale})`,
           visibility: initialOpacity <= 0.01 ? 'hidden' : 'visible',
           pointerEvents: initialOpacity <= 0.05 ? 'none' : 'auto',
         }}
@@ -67,21 +67,21 @@ export const HeroOverlay: React.FC<HeroOverlayProps> = ({
         </h1>
 
         {/* Subheading: Best Flavored Protein Drinks */}
-        <p className="mt-2.5 sm:mt-3 text-base sm:text-xl md:text-2xl font-medium tracking-tight text-neutral-200 max-w-lg text-balance drop-shadow-md">
+        <p className="mt-2.5 sm:mt-3 text-base sm:text-xl md:text-2xl font-medium tracking-tight text-white max-w-lg text-balance drop-shadow-[0_2px_14px_rgba(0,0,0,0.55)]">
           Best Flavored Protein Drinks
         </p>
 
         {/* Flavor Tagline Note */}
-        <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm font-medium tracking-wide text-white/60">
+        <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm font-medium tracking-wide text-white/85 drop-shadow-sm">
           {current.tagline}
         </p>
 
         {/* Subtle Scroll Cue */}
-        <div className="mt-6 sm:mt-8 flex flex-col items-center gap-1 text-neutral-400 animate-bounce">
-          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-white/70">
+        <div className="mt-6 sm:mt-8 flex flex-col items-center gap-1 text-white/85 animate-bounce drop-shadow-sm">
+          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-white/90">
             Scroll to unleash 3D
           </span>
-          <ChevronDown className="w-3.5 h-3.5 text-white/70" />
+          <ChevronDown className="w-3.5 h-3.5 text-white/90" />
         </div>
       </div>
 
@@ -89,10 +89,10 @@ export const HeroOverlay: React.FC<HeroOverlayProps> = ({
       {/* CLIMAX PRODUCT SPECS OVERLAY (Settled Can pose)                          */}
       {/* ========================================================================= */}
       <div
-        className="absolute inset-x-4 sm:inset-x-12 top-20 bottom-24 flex flex-col justify-between pointer-events-none transition-all duration-300"
+        className="absolute inset-x-4 sm:inset-x-12 top-20 bottom-24 flex flex-col justify-between pointer-events-none will-change-transform"
         style={{
           opacity: settledOpacity,
-          transform: `translateY(${settledTranslateY}px)`,
+          transform: `translate3d(0, ${settledTranslateY}px, 0)`,
           visibility: settledOpacity <= 0.01 ? 'hidden' : 'visible',
         }}
       >
@@ -227,4 +227,5 @@ export const HeroOverlay: React.FC<HeroOverlayProps> = ({
       </div>
     </div>
   );
-};
+});
+
